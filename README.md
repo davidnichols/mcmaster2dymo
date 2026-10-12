@@ -44,3 +44,7 @@ found automatically.
 
 QR codes: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
 by Kazuhiko Arase (MIT), vendored at `extension/lib/qrcode.js`.
+
+## License
+
+[MIT](LICENSE) © 2026 David Nichols
