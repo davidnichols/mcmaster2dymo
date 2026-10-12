@@ -1,0 +1,17 @@
+{
+  "name": "mcmaster-dymo-label",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Chrome extension that prints a DYMO LabelWriter 550 label for the McMaster-Carr part you're viewing.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "layouts": "node scripts/render-layouts.js",
+    "package": "node scripts/package.js"
+  },
+  "devDependencies": {
+    "canvas": "^3.1.0",
+    "jsqr": "^1.4.0",
+    "playwright-core": "^1.47.0"
+  }
+}

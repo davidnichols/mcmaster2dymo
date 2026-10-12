@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DYMO label</title>
+  <style id="page"></style>
+  <style>
+    html, body { margin: 0; padding: 0; background: #fff; }
+    img { display: block; }
+    .hint { font: 14px system-ui, sans-serif; padding: 16px; color: #444; }
+    @media print { .hint { display: none; } .label { page-break-after: always; } .label:last-child { page-break-after: auto; } }
+  </style>
+</head>
+<body>
+  <div class="hint">In the print dialog choose your <b>DYMO LabelWriter 550</b>, and under <i>More settings</i> set the paper size to match your labels and Margins to <i>None</i>.</div>
+  <div id="labels"></div>
+  <script src="print.js"></script>
+</body>
+</html>

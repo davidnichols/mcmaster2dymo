@@ -1,0 +1,41 @@
+:root {
+  --bg: #fff; --fg: #1b1b1b; --muted: #6b6b6b; --line: #dedede;
+  --field: #f6f6f6; --accent: #2a6f2a; --accent-fg: #fff; --err: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1f1f1f; --fg: #eee; --muted: #a0a0a0; --line: #3a3a3a;
+          --field: #2a2a2a; --accent: #4f9a4f; --err: #ff8a80; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; width: 380px; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+header { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 600; }
+.pn { font: 600 13px ui-monospace, monospace; color: var(--muted); }
+main { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.empty { padding: 18px 14px; color: var(--muted); }
+.preview-wrap { background: #e9e9e9; border-radius: 6px; padding: 10px; display: flex; justify-content: center; }
+#preview { width: 100%; height: auto; background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field span { font-size: 11px; color: var(--muted); }
+.row { display: flex; gap: 10px; align-items: flex-end; }
+.grow { flex: 1; min-width: 0; }
+.copies { width: 64px; }
+textarea, select, input[type=number] {
+  font: inherit; color: var(--fg); background: var(--field);
+  border: 1px solid var(--line); border-radius: 5px; padding: 5px 7px; width: 100%;
+}
+textarea { resize: vertical; }
+.check { display: flex; gap: 5px; align-items: center; padding-bottom: 6px; white-space: nowrap; }
+.primary { font: 600 14px system-ui, sans-serif; padding: 9px; border: 0; border-radius: 6px;
+  background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+.primary:disabled { opacity: .55; cursor: default; }
+.status { min-height: 1.4em; color: var(--muted); }
+.status.err { color: var(--err); }
+.status a { color: inherit; }
+code { font-size: 12px; }
+.picbox { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.picbox .check { padding-bottom: 0; }
+.imgnav { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); padding-bottom: 4px; }
+.imgnav[hidden] { display: none; }
+.imgnav button { font-size: 10px; line-height: 1; padding: 3px 6px; border: 1px solid var(--line);
+  border-radius: 4px; background: var(--field); color: var(--fg); cursor: pointer; }

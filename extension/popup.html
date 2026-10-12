@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="brand">McMaster → DYMO</div>
+    <div id="partNo" class="pn"></div>
+  </header>
+
+  <div id="notPart" class="empty" hidden>
+    Open a McMaster-Carr part page (for example <code>mcmaster.com/91251A540</code>), then click this button again.
+  </div>
+
+  <main id="main" hidden>
+    <div class="preview-wrap"><canvas id="preview"></canvas></div>
+
+    <label class="field">
+      <span>Description</span>
+      <textarea id="desc" rows="3"></textarea>
+    </label>
+
+    <div class="row">
+      <label class="field grow">
+        <span>Label</span>
+        <select id="size"></select>
+      </label>
+      <label class="field copies">
+        <span>Copies</span>
+        <input id="copies" type="number" min="1" max="99" value="1">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Layout</span>
+      <select id="layout"></select>
+    </label>
+
+    <div class="row">
+      <label class="field grow">
+        <span>Printer</span>
+        <select id="printer"><option value="">Looking for DYMO Connect…</option></select>
+      </label>
+      <div class="picbox">
+        <label class="check">
+          <input id="showImage" type="checkbox" checked> Picture
+        </label>
+        <div id="imgNav" class="imgnav" hidden>
+          <button id="imgPrev" type="button" title="Previous picture">◀</button>
+          <span id="imgCount"></span>
+          <button id="imgNext" type="button" title="Next picture">▶</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="print" class="primary">Print label</button>
+    <div id="status" class="status"></div>
+  </main>
+
+  <script src="lib/qrcode.js"></script>
+  <script src="label.js"></script>
+  <script src="dymo.js"></script>
+  <script src="extract.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
