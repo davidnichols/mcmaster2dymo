@@ -7,7 +7,7 @@ a QR code linking back to `https://www.mcmaster.com/<part number>/`.
 ![30336 layouts](docs/30336-layouts.png)
 
 ## Install
-1. Clone this repo (or download a zip from `npm run package`).
+1. `git clone https://github.com/davidnichols/mcmaster2dymo` (or build a zip with `npm run package`).
 2. Open `chrome://extensions`, turn on **Developer mode**.
 3. **Load unpacked** → select the `extension/` folder.
 4. Pin the extension. After pulling changes, click reload on its card.
@@ -37,7 +37,7 @@ remembered.
 npm install          # canvas, jsqr, playwright-core (dev only)
 npm test             # layout/QR tests + page-extractor test in headless Chrome
 npm run layouts      # regenerate docs/30336-layouts.png (or: npm run layouts -- 30252)
-npm run package      # dist/mcmaster-dymo-label-<version>.zip
+npm run package      # dist/mcmaster2dymo-<version>.zip
 ```
 The extractor test needs Chrome or Chromium; set `CHROME_PATH` if it isn't
 found automatically.
