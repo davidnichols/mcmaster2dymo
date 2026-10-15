@@ -33,6 +33,8 @@ listed with a checkbox and a copies box (1 each by default). Untick lines you
 don't want, set copies, click a line to preview it or edit its description,
 then **Print N labels**. Each label is sent to the 550 in turn.
 
+<img src="docs/popup-order.png" width="320" alt="Order mode">
+
 Settings (size, layout, printer, picture on/off) are remembered.
 
 - **Label sizes:** 30336 (1" × 2-1/8", default), 30252 Address, 30256 Shipping.
