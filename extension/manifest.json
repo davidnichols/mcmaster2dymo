@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "McMaster → DYMO Label",
-  "version": "1.1.0",
-  "description": "Print a DYMO LabelWriter 550 label for the McMaster-Carr part you're viewing: part number, description, picture and a QR code link.",
+  "version": "1.2.0",
+  "description": "Print DYMO LabelWriter 550 labels for McMaster-Carr parts — one part, or every line of an order: part number, description, picture and a QR code link.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Print DYMO label for this McMaster part",
+    "default_title": "Print DYMO labels for this McMaster part or order",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

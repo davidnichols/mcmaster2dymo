@@ -1,10 +1,69 @@
 /* Page extractor. Injected into the McMaster tab via chrome.scripting.executeScript
  * (it must be self-contained: no references to anything outside the function).
- * Returns { partNumber, description, url, images[], imageDataUrls[] }.
+ *
+ * Part page  -> { kind: "part", partNumber, description, url, images[], imageDataUrls[] }
+ * Order page -> { kind: "order", po, lines: [{ line, partNumber, description, url,
+ *                 qty, unit, images[], imageDataUrls[] }] }
  */
 async function extractMcMaster() {
   const PN = /^(\d{1,5}[A-Z]{1,2}\d{1,5}[A-Z]?)$/i;
   const clean = s => (s || "").replace(/\s+/g, " ").trim();
+  // Order lines are title-cased ("4\" Od"); restore common abbreviations.
+  const fixCase = s => s.replace(/\bOd\b/g, "OD").replace(/\bId\b/g, "ID");
+  const partUrl = pn => `https://www.mcmaster.com/${pn}/`;
+
+  // McMaster image URLs carry a size token (…@100p_…); the same image is
+  // served at other sizes, so ask for a 300 px one for crisp printing.
+  const hires = u => u.replace(/@\d+p(?=[_.])/, "@300p");
+  const toDataUrl = async u => {
+    try {
+      const r = await fetch(u, { credentials: "include" });
+      if (!r.ok) return "";
+      const blob = await r.blob();
+      if (!blob.type.startsWith("image/")) return "";
+      return await new Promise(res => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = () => res("");
+        fr.readAsDataURL(blob);
+      });
+    } catch (_) { return ""; }
+  };
+  // Returns { src, dataUrl } for the best available size of an image.
+  const fetchBest = async u => {
+    const big = hires(u);
+    if (big !== u) {
+      const d = await toDataUrl(big);
+      if (d) return { src: big, dataUrl: d };
+    }
+    return { src: u, dataUrl: await toDataUrl(u) };
+  };
+
+  // ---- Order detail page (/order-history/order/<id>) ----
+  const rows = [...document.querySelectorAll(".dtl-row")].filter(r => r.querySelector(".dtl-row-specs"));
+  if (rows.length) {
+    const lines = await Promise.all(rows.map(async (r, i) => {
+      const pn = clean(r.querySelector(".dtl-row-specs").textContent).toUpperCase();
+      const descEl = r.querySelector(".dtl-row-lnk p:not(.dtl-row-specs)") || r.querySelector(".dtl-row-copy p");
+      const img = r.querySelector("img.dtl-img") || r.querySelector("img");
+      const src = img ? (img.getAttribute("src") ? new URL(img.getAttribute("src"), location.href).href : "") : "";
+      const best = src ? await fetchBest(src) : null;
+      return {
+        line: clean(r.querySelector(".dtl-row-nbr")?.textContent) || String(i + 1),
+        partNumber: pn,
+        description: fixCase(clean(descEl?.innerText || descEl?.textContent)),
+        url: partUrl(pn),
+        qty: clean(r.querySelector(".dtl-row-quantity")?.textContent),
+        unit: clean(r.querySelector(".dtl-row-qu .dtl-row-unit")?.textContent),
+        images: best ? [best.src] : [],
+        imageDataUrls: best ? [best.dataUrl] : []
+      };
+    }));
+    const po = clean(document.querySelector("input.order-dtl-po, #po-check-for-value")?.value);
+    return { kind: "order", po, lines };
+  }
+
+  // ---- Single part page ----
 
   // Part number: from the URL path first, then from visible headings.
   let partNumber = "";
@@ -97,24 +156,15 @@ async function extractMcMaster() {
     cands.push({ src, s, order });
   });
   cands.sort((a, b) => b.s - a.s || a.order - b.order);
-  const images = cands.slice(0, 6).map(c => c.src);
 
-  // Same-origin fetch from the page, used if the popup can't load an image directly.
-  const toDataUrl = async u => {
-    try {
-      const blob = await (await fetch(u, { credentials: "include" })).blob();
-      return await new Promise(res => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result);
-        fr.onerror = () => res("");
-        fr.readAsDataURL(blob);
-      });
-    } catch (_) { return ""; }
+  // Fetched from the page (same origin), so the popup never needs cookies.
+  const fetched = await Promise.all(cands.slice(0, 6).map(c => fetchBest(c.src)));
+
+  const url = partNumber ? partUrl(partNumber) : location.href;
+  return {
+    kind: "part", partNumber, description, url,
+    images: fetched.map(f => f.src), imageDataUrls: fetched.map(f => f.dataUrl)
   };
-  const imageDataUrls = await Promise.all(images.map(toDataUrl));
-
-  const url = partNumber ? `https://www.mcmaster.com/${partNumber}/` : location.href;
-  return { partNumber, description, url, images, imageDataUrls };
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = { extractMcMaster };

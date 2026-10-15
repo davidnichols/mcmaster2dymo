@@ -39,3 +39,26 @@ code { font-size: 12px; }
 .imgnav[hidden] { display: none; }
 .imgnav button { font-size: 10px; line-height: 1; padding: 3px 6px; border: 1px solid var(--line);
   border-radius: 4px; background: var(--field); color: var(--fg); cursor: pointer; }
+
+/* Order mode */
+.order-only { display: none; }
+body.order-mode .order-only { display: block; }
+body.order-mode .part-only { display: none; }
+.orderhead { font-weight: 600; padding: 0 0 4px; }
+.orderhead .cphead { margin-left: auto; font: 11px system-ui, sans-serif; color: var(--muted); padding-right: 6px; }
+.lines { list-style: none; margin: 0; padding: 0; max-height: 210px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 6px; }
+.lines li { display: flex; align-items: center; gap: 7px; padding: 4px 6px; cursor: pointer;
+  border-bottom: 1px solid var(--line); }
+.lines li:last-child { border-bottom: 0; }
+.lines li.current { background: var(--field); box-shadow: inset 3px 0 0 var(--accent); }
+.lines .thumb { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center;
+  background: #fff; border-radius: 3px; }
+.lines .info { flex: 1; min-width: 0; }
+.lines .pn { font: 600 12px ui-monospace, monospace; }
+.lines .d { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lines .cp { width: 44px; flex: none; padding: 3px 5px; }
+/* Chrome caps popups at 600px tall; keep the print button reachable. */
+.lines { max-height: 168px; }
+#print { position: sticky; bottom: 8px; box-shadow: 0 0 0 8px var(--bg); }
+body { overflow-x: hidden; }

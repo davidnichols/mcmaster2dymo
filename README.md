@@ -1,8 +1,9 @@
 # McMaster → DYMO Label
 
-Chrome extension that prints a **DYMO LabelWriter 550** label for the
-McMaster-Carr part you're viewing: part number, description, part picture and
-a QR code linking back to `https://www.mcmaster.com/<part number>/`.
+Chrome extension that prints **DYMO LabelWriter 550** labels for McMaster-Carr
+parts: part number, description, part picture and a QR code linking back to
+`https://www.mcmaster.com/<part number>/`. Works on a single part page, or on
+an order in Order History to label everything in that order at once.
 
 ![30336 layouts](docs/30336-layouts.png)
 
@@ -22,25 +23,36 @@ Without DYMO Connect the extension falls back to Chrome's print dialog: pick
 the LabelWriter, set the paper size to your label and Margins to None.
 
 ## Use
-On a part page (e.g. `mcmaster.com/9541K43`), click the icon or press
-**Alt+Shift+L**. Check the preview, edit the description if needed, choose
-label size, layout and printer, and click **Print label**. Settings are
-remembered.
+**One part:** on a part page (e.g. `mcmaster.com/9541K43`), click the icon or
+press **Alt+Shift+L**. Check the preview, edit the description if needed,
+choose label size, layout and printer, and click **Print label**.
+
+**A whole order:** open the order in Order History
+(`mcmaster.com/order-history/order/…`) and click the icon. Every line is
+listed with a checkbox and a copies box (1 each by default). Untick lines you
+don't want, set copies, click a line to preview it or edit its description,
+then **Print N labels**. Each label is sent to the 550 in turn.
+
+<img src="docs/popup-order.png" width="320" alt="Order mode">
+
+Settings (size, layout, printer, picture on/off) are remembered.
 
 - **Label sizes:** 30336 (1" × 2-1/8", default), 30252 Address, 30256 Shipping.
 - **Layouts:** Classic, Banner, Black bar, Big picture, QR first, Text only.
-- **Picture:** the product render at the top of the page; dimension drawings
-  are skipped. Use ◀ ▶ under **Picture** to pick another, or untick it.
+- **Pictures:** 300 px versions of McMaster's images. On a part page it uses
+  the product render at the top of the page and skips dimension drawings; use
+  ◀ ▶ under **Picture** to pick another, or untick it.
 
 ## Development
 ```sh
 npm install          # canvas, jsqr, playwright-core (dev only)
-npm test             # layout/QR tests + page-extractor test in headless Chrome
+npm test             # layout/QR tests, extractor tests, and end-to-end popup tests
+                     # (extension loaded in headless Chrome, fake McMaster + DYMO)
 npm run layouts      # regenerate docs/30336-layouts.png (or: npm run layouts -- 30252)
 npm run package      # dist/mcmaster2dymo-<version>.zip
 ```
-The extractor test needs Chrome or Chromium; set `CHROME_PATH` if it isn't
-found automatically.
+The browser tests need Chrome or Chromium; set `CHROME_PATH` if it isn't
+found automatically. Set `E2E_SCREENSHOTS=<dir>` to save popup screenshots.
 
 QR codes: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
 by Kazuhiko Arase (MIT), vendored at `extension/lib/qrcode.js`.

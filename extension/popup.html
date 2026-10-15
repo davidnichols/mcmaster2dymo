@@ -11,10 +11,18 @@
   </header>
 
   <div id="notPart" class="empty" hidden>
-    Open a McMaster-Carr part page (for example <code>mcmaster.com/91251A540</code>), then click this button again.
+    Open a McMaster-Carr part page (for example <code>mcmaster.com/91251A540</code>) or an order in Order History, then click this button again.
   </div>
 
   <main id="main" hidden>
+    <section id="orderBox" class="order-only">
+      <label class="check orderhead">
+        <input id="selAll" type="checkbox" checked> <span id="orderTitle"></span>
+        <span class="cphead">Copies</span>
+      </label>
+      <ul id="lines" class="lines"></ul>
+    </section>
+
     <div class="preview-wrap"><canvas id="preview"></canvas></div>
 
     <label class="field">
@@ -27,7 +35,7 @@
         <span>Label</span>
         <select id="size"></select>
       </label>
-      <label class="field copies">
+      <label class="field copies part-only">
         <span>Copies</span>
         <input id="copies" type="number" min="1" max="99" value="1">
       </label>
