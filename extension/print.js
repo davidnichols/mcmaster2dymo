@@ -8,12 +8,16 @@
      img.label { width: ${L.widthIn}in; height: ${L.heightIn}in; }`;
   const box = document.getElementById("labels");
   const loads = [];
-  for (let i = 0; i < Math.max(1, L.copies || 1); i++) {
-    const img = new Image();
-    img.className = "label";
-    img.src = L.dataUrl;
-    box.appendChild(img);
-    loads.push(img.decode().catch(() => {}));
+  // { labels: [{ dataUrl, copies }] } (older single-label form: { dataUrl, copies })
+  const labels = L.labels || [{ dataUrl: L.dataUrl, copies: L.copies }];
+  for (const lab of labels) {
+    for (let i = 0; i < Math.max(1, lab.copies || 1); i++) {
+      const img = new Image();
+      img.className = "label";
+      img.src = lab.dataUrl;
+      box.appendChild(img);
+      loads.push(img.decode().catch(() => {}));
+    }
   }
   await Promise.all(loads);
   window.addEventListener("afterprint", () => window.close());
