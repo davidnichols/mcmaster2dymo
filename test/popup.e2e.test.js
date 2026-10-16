@@ -46,6 +46,15 @@ async function withExtension(fn) {
     }
     return route.fulfill({ status: 404, body: "" });
   });
+  // Fake shop print server: the popup adopts its label settings and pushes changes back.
+  const shopSettings = { size: "30336", layout: "banner", showImage: true };
+  const shopPosts = [];
+  await ctx.route(/^http:\/\/(localhost|127\.0\.0\.1):41952\//, route => {
+    const u = route.request().url();
+    if (u.endsWith("/status")) return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, settings: shopSettings }) });
+    if (u.endsWith("/settings")) { shopPosts.push(JSON.parse(route.request().postData() || "{}")); return route.fulfill({ contentType: "application/json", body: '{"ok":true}' }); }
+    return route.fulfill({ status: 404, body: "" });
+  });
   try {
     const page = await ctx.newPage();
     await page.goto("chrome://extensions");
@@ -53,7 +62,7 @@ async function withExtension(fn) {
       chrome.management.getAll(l => r(l.find(e => /DYMO/.test(e.name))?.id))));
     // Branded Google Chrome >= 137 ignores --load-extension; use Chromium (CHROME_PATH).
     if (!id) throw new Error(`extension not loaded by ${launch.executablePath}; point CHROME_PATH at a Chromium build`);
-    await fn({ ctx, page, id, printed });
+    await fn({ ctx, page, id, printed, shopPosts });
   } finally {
     await ctx.close();
     fs.rmSync(profile, { recursive: true, force: true });
@@ -102,11 +111,16 @@ test("order page: lists every line and prints them all via DYMO", { skip: !launc
 });
 
 test("part page: still prints a single label", { skip: !launch && "no Chrome/Chromium found" }, async () => {
-  await withExtension(async ({ ctx, page, id, printed }) => {
+  await withExtension(async ({ ctx, page, id, printed, shopPosts }) => {
     const { popup, errors } = await openPopupFor(ctx, page, id, "https://www.mcmaster.com/9541K43/");
     await popup.waitForFunction(() => document.getElementById("partNo").textContent === "9541K43");
     assert.ok(!(await popup.isVisible("#orderBox")));
     await popup.waitForFunction(() => document.getElementById("printer").value === "DYMO LabelWriter 550");
+    // Layout came from the (fake) shop print server; changing it is pushed back.
+    assert.strictEqual(await popup.inputValue("#layout"), "banner");
+    await popup.selectOption("#layout", "textonly");
+    await popup.waitForFunction(() => /shop print server/.test(document.getElementById("status").textContent));
+    assert.deepStrictEqual(shopPosts.at(-1), { size: "30336", layout: "textonly", showImage: true });
     if (SHOTS) await popup.screenshot({ path: path.join(SHOTS, "popup-part.png"), fullPage: true });
     await popup.click("#print");
     await popup.waitForFunction(() => /Printed ✓/.test(document.getElementById("status").textContent));

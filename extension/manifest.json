@@ -36,6 +36,8 @@
     "https://www.mcmaster.com/*",
     "https://*.mcmaster.com/*",
     "https://127.0.0.1:41951/*",
-    "https://localhost:41951/*"
+    "https://localhost:41951/*",
+    "http://localhost:41952/*",
+    "http://127.0.0.1:41952/*"
   ]
 }
