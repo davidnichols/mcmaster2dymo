@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "McMaster → DYMO Label",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Print DYMO LabelWriter 550 labels for McMaster-Carr parts — one part, or every line of an order: part number, description, picture and a QR code link.",
   "action": {
     "default_popup": "popup.html",
@@ -21,15 +21,23 @@
   },
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Alt+Shift+L" },
+      "suggested_key": {
+        "default": "Alt+Shift+L"
+      },
       "description": "Open the label popup"
     }
   },
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
   "host_permissions": [
     "https://www.mcmaster.com/*",
     "https://*.mcmaster.com/*",
     "https://127.0.0.1:41951/*",
-    "https://localhost:41951/*"
+    "https://localhost:41951/*",
+    "http://localhost:41952/*",
+    "http://127.0.0.1:41952/*"
   ]
 }

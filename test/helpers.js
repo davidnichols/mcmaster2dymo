@@ -27,12 +27,43 @@ function decodeQR(canvas) {
   return r ? r.data : null;
 }
 
-// Find a browser for the page-extractor test: $CHROME_PATH, the cloud
-// container's Chromium, or a locally installed Chrome.
+// Playwright's downloaded Chromium (`npx playwright-core install chromium`):
+// <cache>/chromium-<build>/chrome-<platform>/<binary>. Newest build first.
+function playwrightChromium() {
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const cache = process.env.PLAYWRIGHT_BROWSERS_PATH || {
+    darwin: path.join(home, "Library/Caches/ms-playwright"),
+    linux: path.join(home, ".cache/ms-playwright"),
+    win32: path.join(process.env.LOCALAPPDATA || "", "ms-playwright")
+  }[process.platform] || "";
+  if (!cache || !fs.existsSync(cache)) return [];
+  const builds = fs.readdirSync(cache)
+    .filter(d => /^chromium-\d+$/.test(d))
+    .sort((a, b) => Number(b.slice(9)) - Number(a.slice(9)));
+  const mac = "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+  return builds.flatMap(b => [
+    path.join(cache, b, "chrome-mac-arm64", mac),
+    path.join(cache, b, "chrome-mac-x64", mac),
+    path.join(cache, b, "chrome-mac", "Chromium.app/Contents/MacOS/Chromium"),
+    path.join(cache, b, "chrome-linux64", "chrome"),
+    path.join(cache, b, "chrome-linux", "chrome"),
+    path.join(cache, b, "chrome-win64", "chrome.exe"),
+    path.join(cache, b, "chrome-win", "chrome.exe")
+  ]);
+}
+
+// Find a browser for the browser-backed tests: $CHROME_PATH, Playwright's
+// Chromium, the cloud container's Chromium, or a locally installed Chrome.
+// Chromium builds come before branded Google Chrome because Chrome 137+
+// ignores --load-extension, which popup.e2e.test.js needs; the extractor and
+// server tests are happy with either.
 function chromeLaunchOptions() {
   const candidates = [
     process.env.CHROME_PATH,
+    ...playwrightChromium(),
     "/opt/pw-browsers/chromium",
+    "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"
   ].filter(Boolean);

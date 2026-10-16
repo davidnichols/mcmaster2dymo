@@ -10,6 +10,31 @@ let items = [];
 let cur = 0;          // item shown in the preview
 let mode = "part";    // "part" | "order"
 
+// Shop print server (server/) on this Mac, if it's running: label size,
+// layout and picture on/off are shared with it so both print the same label.
+const SHOP_DEFAULT = "http://localhost:41952";
+let shop = null;      // base URL once reached
+
+async function shopSettings(base) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 1500);
+  try {
+    const r = await fetch(base + "/status", { signal: ctl.signal });
+    const j = await r.json();
+    if (j?.settings) { shop = base; return j.settings; }
+  } catch (_) { /* not running */ }
+  finally { clearTimeout(t); }
+  return null;
+}
+
+function pushShopSettings(s) {
+  if (!shop) return;
+  fetch(shop + "/settings", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ size: s.size, layout: s.layout, showImage: s.showImage })
+  }).catch(() => {});
+}
+
 async function loadBitmap(p, i) {
   const tries = [];
   if (p.imageDataUrls?.[i]) tries.push(() => fetch(p.imageDataUrls[i]).then(r => r.blob()));
@@ -105,6 +130,7 @@ function saveSettings() {
   };
   if (mode === "part") s.copies = +$("copies").value || 1;
   chrome.storage.sync.set(s);
+  pushShopSettings(s);
 }
 
 async function loadPrinters(preferred) {
@@ -216,7 +242,10 @@ async function init() {
   for (const [k, v] of Object.entries(McmLabel.LABEL_SIZES)) $("size").add(new Option(v.name, k));
   for (const [k, v] of Object.entries(McmLabel.LAYOUTS)) $("layout").add(new Option(v.name, k));
 
-  const settings = await chrome.storage.sync.get({ size: "30336", layout: "classic", printer: "", copies: 1, showImage: true });
+  const settings = await chrome.storage.sync.get({ size: "30336", layout: "classic", printer: "", copies: 1, showImage: true, shopServer: SHOP_DEFAULT });
+  // The shop print server's choices win when it's running on this Mac.
+  const remote = await shopSettings(settings.shopServer);
+  if (remote) Object.assign(settings, { size: remote.size, layout: remote.layout, showImage: !!remote.showImage });
   $("size").value = McmLabel.LABEL_SIZES[settings.size] ? settings.size : "30336";
   $("layout").value = McmLabel.LAYOUTS[settings.layout] ? settings.layout : "classic";
   $("copies").value = settings.copies;
@@ -294,6 +323,7 @@ async function init() {
   $("print").addEventListener("click", onPrint);
 
   await loadPrinters(settings.printer);
+  if (shop && !$("status").textContent) setStatus(`Label settings shared with the <a href="${shop}/" target="_blank">shop print server</a>.`);
 }
 
 init();
