@@ -1,17 +1,29 @@
 {
   "name": "mcmaster2dymo",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
-  "description": "Chrome extension that prints a DYMO LabelWriter 550 label for the McMaster-Carr part you're viewing.",
+  "description": "Prints DYMO LabelWriter 550 labels for McMaster-Carr parts: a Chrome extension, and a shop print server you can share to from the McMaster iPhone app.",
   "license": "MIT",
   "scripts": {
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "layouts": "node scripts/render-layouts.js",
-    "package": "node scripts/package.js"
+    "package": "node scripts/package.js",
+    "server": "node server/index.js",
+    "server:install": "node server/install-launchd.js",
+    "server:uninstall": "node server/install-launchd.js uninstall",
+    "app": "mac/build.sh"
   },
   "devDependencies": {
+    "jsqr": "^1.4.0"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
     "canvas": "^3.1.0",
-    "jsqr": "^1.4.0",
     "playwright-core": "^1.47.0"
   }
 }

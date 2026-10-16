@@ -50,7 +50,9 @@ async function withExtension(fn) {
     const page = await ctx.newPage();
     await page.goto("chrome://extensions");
     const id = await page.evaluate(() => new Promise(r =>
-      chrome.management.getAll(l => r(l.find(e => /DYMO/.test(e.name)).id))));
+      chrome.management.getAll(l => r(l.find(e => /DYMO/.test(e.name))?.id))));
+    // Branded Google Chrome >= 137 ignores --load-extension; use Chromium (CHROME_PATH).
+    if (!id) throw new Error(`extension not loaded by ${launch.executablePath}; point CHROME_PATH at a Chromium build`);
     await fn({ ctx, page, id, printed });
   } finally {
     await ctx.close();
