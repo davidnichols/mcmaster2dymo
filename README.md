@@ -40,7 +40,10 @@ then **Print N labels**. Each label is sent to the 550 in turn.
 
 <img src="docs/popup-order.png" width="320" alt="Order mode">
 
-Settings (size, layout, printer, picture on/off) are remembered.
+Settings (size, layout, printer, picture on/off) are remembered. If the shop
+print server (below) is running on the same Mac, label size, layout and
+picture on/off are shared with it: the popup picks up whatever is chosen on
+the server page, and changes made in the popup are sent back.
 
 ## Shop print server (share from the iPhone app)
 Runs on the Mac that has DYMO Connect and the LabelWriter. It listens on the
@@ -58,18 +61,20 @@ Google Chrome (or Chromium) must be installed on the Mac; it's driven headless
 and closed again after 5 minutes without jobs.
 
 Open `http://<your-mac>.local:41952/` from any browser on the Wi-Fi: it shows
-the printer, a box to print a part number or link, and the last labels
-printed. **`/shortcut`** on that page walks through building the iPhone
+the printer, a preview of every label template (click one to make it the
+template for all labels; label size and picture on/off are there too), a box
+to print a part number or link, and the last labels printed. **`/shortcut`** on that page walks through building the iPhone
 Shortcut (a share-sheet shortcut that POSTs to `/print`), with the right URL
 filled in. Once it's built: open a part in the McMaster app → **Share** →
 **Print McMaster label**. A notification reports *Printed 9541K43 ✓* or the
 reason it didn't.
 
 Settings live in `~/.mcmaster2dymo.json` (created on first run): `port`,
-`printer` (blank = first connected 550), `size`, `layout`, `showImage`,
-`copies`, `token` (optional shared secret the Shortcut must send),
-`printWithoutDetails` (if McMaster can't be read, still print the number and
-QR). Restart the server after editing (`npm run server:install` again does).
+`printer` (blank = first connected 550), `size`, `layout`, `showImage`
+(the three the web page edits), `copies`, `token` (optional shared secret the
+Shortcut must send), `printWithoutDetails` (if McMaster can't be read, still
+print the number and QR). Restart the server after editing the file by hand
+(`npm run server:install` again does).
 
 ### Menu bar app (macOS 14+)
 Instead of the launchd agent, run the server from a menu bar icon that also

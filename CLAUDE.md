@@ -47,6 +47,11 @@ picture, QR link) on a DYMO LabelWriter 550:
   mode adds `body.order-mode` with a line list (checkbox + copies each).
   `popup.html?tab=<id>` targets a given tab (used by the e2e test). Chrome
   caps popups at 600 px tall, so the print button is `position: sticky`.
+  On open it GETs `<shopServer>/status` (default `http://localhost:41952`,
+  1.5 s timeout; manifest has host permissions for it) and, if the shop print
+  server answers, its size/layout/showImage override the stored ones;
+  `saveSettings()` also POSTs them to `/settings` as JSON. Not reachable →
+  silently standalone.
 - `extension/print.*` — fallback: Chrome print dialog with `@page` sized to the
   label; reads `{ labels: [{ dataUrl, copies }], widthIn, heightIn }` from
   `chrome.storage.session`.
@@ -54,8 +59,8 @@ picture, QR link) on a DYMO LabelWriter 550:
 
 ## Shop print server (`server/`)
 - `index.js` — entry (`npm run server`); wires config, fetcher, printer, app.
-- `config.js` — `~/.mcmaster2dymo.json` (or `$MCM2DYMO_CONFIG`), written with
-  defaults on first run: port 41952, bind 0.0.0.0, token, printer, size,
+- `config.js` — `load()`/`save()` of `~/.mcmaster2dymo.json` (or
+  `$MCM2DYMO_CONFIG`), written with defaults on first run: port 41952, bind 0.0.0.0, token, printer, size,
   layout, showImage, copies, printWithoutDetails, chromePath, chromeIdleMs.
 - `share.js` — `partNumbersFrom(...texts)`: part numbers from mcmaster.com URL
   paths first, else any `\d+[A-Z]{1,2}\d+[A-Z]?` token. Pure, unit-tested.
@@ -70,11 +75,17 @@ picture, QR link) on a DYMO LabelWriter 550:
   accepts DYMO's self-signed cert. Printer choice: configured name, else first
   connected 550.
 - `app.js` — `createApp({ config, fetchPart, printer, log })`, plain
-  `http`. `POST /print` (JSON / form / text) and `GET /print?pn=` run one job
+  `http`. Every response carries permissive CORS headers (the extension popup
+  calls `/status` and `/settings` cross-origin; OPTIONS → 204). `POST /print` (JSON / form / text) and `GET /print?pn=` run one job
   at a time and answer `{ ok, message, labels }` (400 no part number, 401 bad
   token, 502 print/fetch failure); `?ui=1` redirects to `/`. `GET /` status
-  page + print form + recent jobs (label PNGs at `/jobs/<id>/<pn>.png`),
-  `GET /shortcut` iPhone Shortcut instructions, `GET /status` JSON.
+  page: template picker (one card per `LAYOUTS` entry with a preview from
+  `GET /preview/<layout>.png`, rendered via `renderPreview()` from the last
+  fetched part or `SAMPLE_PART` + `server/sample.png`, cached in memory;
+  clicking auto-submits `POST /settings` with layout/size/showImage, which
+  updates `config` and `config.save()`s it), print form, recent jobs (label
+  PNGs at `/jobs/<id>/<pn>.png`). `GET /shortcut` iPhone Shortcut
+  instructions, `GET /status` JSON.
 - `install-launchd.js` — writes `~/Library/LaunchAgents/com.davidnichols.mcmaster2dymo.plist`
   (KeepAlive, RunAtLoad, log in `~/Library/Logs/mcmaster2dymo.log`) and
   bootstraps it; `uninstall` arg removes it.
@@ -90,8 +101,12 @@ picture, QR link) on a DYMO LabelWriter 550:
 - `Sources/McMaster2DYMO/`: `App.swift` (`MenuBarExtra` menu + `Settings`
   scene), `ServerController.swift` (`@MainActor ObservableObject`: spawns
   `node server/index.js` with stdout/err appended to
-  `~/Library/Logs/mcmaster2dymo.log`, polls `GET /status` every 4 s, writes
-  the config and restarts on every change, `SMAppService` launch-at-login,
+  `~/Library/Logs/mcmaster2dymo.log`, polls `GET /status` every 4 s and
+  adopts the `settings` it reports (so the menu follows the status web page
+  and the extension popup); menu changes to size/layout/showImage go through
+  `POST /settings` on the running server (no restart; falls back to
+  save + restart if that fails), other keys write the config and restart;
+  `SMAppService` launch-at-login,
   removes the old launchd agent on request), `Config.swift` (`ServerConfig`:
   the JSON file as `[String: Any]`, unknown keys preserved; `Catalog`: sizes
   and layouts via `node server/catalog.js`, hardcoded fallback),
@@ -134,7 +149,8 @@ unreachable or a print fails, the remaining labels go to `print.html`.
     come before branded Chrome.
   - `server.test.js`: `partNumbersFrom`; the HTTP app with a fake part fetcher
     and fake DYMO client (full label + QR decode, form/GET/text bodies,
-    printWithoutDetails, DYMO down, token, serial queue); and the headless
+    printWithoutDetails, DYMO down, token, serial queue, template picker +
+    `/settings` persistence); and the headless
     fetcher against `mock-part-page.html` (skipped without Chrome).
 - `npm run server` / `server:install` / `server:uninstall` — see above.
   **Careful: on a Mac with DYMO Connect and a printer attached, `/print`
