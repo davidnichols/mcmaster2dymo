@@ -8,7 +8,7 @@ const path = require("path");
 const { fixture, decodeQR, createCanvas, loadImage, chromeLaunchOptions } = require("./helpers");
 const { partNumbersFrom } = require("../server/share");
 const { createApp } = require("../server/app");
-const { createPrinter } = require("../server/print");
+const { createPrinter, Label } = require("../server/print");
 const { createPartFetcher } = require("../server/mcmaster");
 const { serve } = require("./fixture-server");
 
@@ -162,6 +162,56 @@ test("jobs run one at a time, in order", async () => {
   const results = await Promise.all(["9541K43", "6100K152", "91290A115"].map(pn => app.enqueue(pn, 1)));
   assert.strictEqual(maxActive, 1);
   assert.deepStrictEqual(results.map(j => j.labels[0].partNumber), ["9541K43", "6100K152", "91290A115"]);
+});
+
+test("status page offers every layout with a preview; choosing one is saved to the config file", async () => {
+  const os = require("os");
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "mcm2dymo-cfg-")), "config.json");
+  const { app, config, dymo } = makeApp({ config: { _file: file, layout: "classic" } });
+  const { base, close } = await listen(app);
+  try {
+    const page = await (await fetch(base + "/")).text();
+    for (const [k, v] of Object.entries(Label.LAYOUTS)) {
+      assert.match(page, new RegExp(`/preview/${k}\\.png`));
+      assert.ok(page.includes(v.name), v.name);
+    }
+    assert.match(page, /class="tpl on">\s*<input type="radio" name="layout" value="classic"/);
+
+    // Sample-part previews render, decode, and differ per layout.
+    const png = async k => Buffer.from(await (await fetch(`${base}/preview/${k}.png`)).arrayBuffer());
+    const a = await png("classic"), b = await png("textonly");
+    assert.ok(a.length > 1000 && !a.equals(b));
+    const img = await loadImage(a);
+    const c = createCanvas(img.width, img.height); c.getContext("2d").drawImage(img, 0, 0);
+    assert.strictEqual(decodeQR(c), "https://www.mcmaster.com/91290A115/");
+    assert.strictEqual((await fetch(`${base}/preview/nope.png`)).status, 404);
+
+    // Pick a template (form post, as the page does) -> persisted and used for the next print.
+    let r = await fetch(base + "/settings", { method: "POST", redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ _form: "1", layout: "textonly", size: "30252" }) });
+    assert.strictEqual(r.status, 303);
+    assert.deepStrictEqual([config.layout, config.size, config.showImage], ["textonly", "30252", false]);
+    const saved = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.deepStrictEqual([saved.layout, saved.size, saved.showImage, saved._file], ["textonly", "30252", false, undefined]);
+    await fetch(base + "/print?pn=91290A115");
+    assert.match(dymo.printed[0].xml, /30252 Address/);
+    assert.strictEqual(dymo.printed[0].hasImage, true, "label image is always embedded");
+
+    // The extension popup syncs via a cross-origin JSON POST: preflight must pass.
+    r = await fetch(base + "/settings", { method: "OPTIONS", headers: { origin: "chrome-extension://abc",
+      "access-control-request-method": "POST", "access-control-request-headers": "content-type" } });
+    assert.strictEqual(r.status, 204);
+    assert.strictEqual(r.headers.get("access-control-allow-origin"), "*");
+    assert.match(r.headers.get("access-control-allow-headers"), /content-type/);
+
+    // JSON works too and ignores unknown layouts.
+    r = await fetch(base + "/settings", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ layout: "bogus", showImage: true }) });
+    assert.deepStrictEqual((await r.json()).settings.layout, "textonly");
+    assert.strictEqual(config.showImage, true);
+    assert.match(await (await fetch(base + "/")).text(), /class="tpl on">\s*<input type="radio" name="layout" value="textonly"/);
+  } finally { await close(); }
 });
 
 const launch = chromeLaunchOptions();

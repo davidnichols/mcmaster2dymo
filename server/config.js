@@ -31,4 +31,10 @@ function load(file = CONFIG_PATH) {
   return { ...DEFAULTS, ...saved, _file: file };
 }
 
-module.exports = { DEFAULTS, CONFIG_PATH, load };
+// Persist the editable settings (everything except the private `_file`).
+function save(config) {
+  const { _file, ...rest } = config;
+  fs.writeFileSync(_file, JSON.stringify(rest, null, 2) + "\n");
+}
+
+module.exports = { DEFAULTS, CONFIG_PATH, load, save };

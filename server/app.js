@@ -7,6 +7,8 @@
 const http = require("http");
 const os = require("os");
 const { partNumbersFrom } = require("./share");
+const { Label, SAMPLE_PART } = require("./print");
+const configStore = require("./config");
 
 const MAX_JOBS = 30;
 
@@ -55,6 +57,8 @@ function createApp({ config, fetchPart, printer, log = console.log }) {
   const jobs = [];       // newest first
   let nextId = 1;
   let queue = Promise.resolve();
+  let lastPart = null;   // most recently fetched part, used for template previews
+  const previews = new Map(); // "layout|size|showImage|pn" -> png
 
   function settings() {
     return { size: config.size, layout: config.layout, showImage: config.showImage, printer: config.printer };
@@ -74,6 +78,7 @@ function createApp({ config, fetchPart, printer, log = console.log }) {
       try {
         part = await fetchPart(pn);
         label.description = part.description || "";
+        if (part.description && part.imageDataUrls?.length && lastPart?.partNumber !== pn) { lastPart = part; previews.clear(); }
       } catch (e) {
         log(`fetch ${pn}: ${e.message}`);
         if (!config.printWithoutDetails) { label.error = `Couldn't read McMaster: ${e.message}`; continue; }
@@ -115,6 +120,50 @@ function createApp({ config, fetchPart, printer, log = console.log }) {
     return `http://${os.hostname().replace(/\.local$/i, "")}.local:${config.port}`;
   }
 
+  async function previewPng(layout) {
+    const part = lastPart || SAMPLE_PART;
+    const key = [layout, config.size, config.showImage, part.partNumber].join("|");
+    if (!previews.has(key)) previews.set(key, await printer.renderPreview(part, { size: config.size, layout, showImage: config.showImage }));
+    return previews.get(key);
+  }
+
+  // Apply size / layout / showImage from a settings form and persist them.
+  function applySettings(fields) {
+    if (fields.layout && Label.LAYOUTS[fields.layout]) config.layout = fields.layout;
+    if (fields.size && Label.LABEL_SIZES[fields.size]) config.size = fields.size;
+    if ("showImage" in fields || fields._form) config.showImage = ["1", "on", "true"].includes(String(fields.showImage));
+    if (config._file) configStore.save(config);
+  }
+
+  function templatePicker() {
+    const s = Label.LABEL_SIZES[config.size] || Label.LABEL_SIZES["30336"];
+    const stamp = `${config.size}-${config.showImage ? 1 : 0}-${lastPart?.partNumber || "sample"}`;
+    const cards = Object.entries(Label.LAYOUTS).map(([k, v]) => `
+      <label class="tpl${k === config.layout ? " on" : ""}">
+        <input type="radio" name="layout" value="${esc(k)}"${k === config.layout ? " checked" : ""}>
+        <img src="/preview/${esc(k)}.png?v=${esc(stamp)}" alt="${esc(v.name)}" style="aspect-ratio:${s.width}/${s.height}">
+        <span>${esc(v.name)}</span>
+      </label>`).join("");
+    const sizes = Object.entries(Label.LABEL_SIZES).map(([k, v]) =>
+      `<option value="${esc(k)}"${k === config.size ? " selected" : ""}>${esc(v.name)}</option>`).join("");
+    return `
+<form method="post" action="/settings" id="settings">
+  <input type="hidden" name="_form" value="1">
+  <div class="row">
+    <select name="size">${sizes}</select>
+    <label><input type="checkbox" name="showImage" value="1"${config.showImage ? " checked" : ""}> Picture</label>
+    <button class="save">Save</button>
+  </div>
+  <div class="tpls">${cards}</div>
+  <small>Previews use ${lastPart ? "the last part printed (" + esc(lastPart.partNumber) + ")" : "a sample part"}. Click a template to use it for every label.</small>
+</form>
+<script>
+  const f = document.getElementById("settings");
+  f.querySelector(".save").hidden = true;
+  f.addEventListener("change", () => f.submit());
+</script>`;
+  }
+
   function statusPage(printers) {
     const rows = jobs.map(j => `
       <li class="job ${j.error ? "bad" : j.labels.every(l => l.ok) ? "" : "bad"}">
@@ -135,19 +184,27 @@ function createApp({ config, fetchPart, printer, log = console.log }) {
  body{font:15px -apple-system,Helvetica,Arial,sans-serif;margin:0 auto;max-width:640px;padding:16px;color:#222}
  h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:20px 0 6px;color:#555}
  code{background:#eee;padding:1px 5px;border-radius:4px}
- form{display:flex;gap:8px} input[type=text]{flex:1;font-size:16px;padding:8px}
+ form.print{display:flex;gap:8px} input[type=text]{flex:1;font-size:16px;padding:8px}
  input[type=number]{width:60px;font-size:16px;padding:8px} button{font-size:16px;padding:8px 14px}
  ul{list-style:none;padding:0;margin:0} .job{border-top:1px solid #ddd;padding:8px 0}
  time{font-size:12px;color:#777} .label{display:flex;gap:10px;align-items:center;margin-top:4px}
  .label img{width:120px;border:1px solid #ccc;border-radius:3px} .bad{color:#b00}
  small{color:#666}
+ .row{display:flex;gap:12px;align-items:center;margin-bottom:10px} .row select{font-size:15px;padding:6px}
+ .tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+ .tpl{display:block;border:2px solid #ddd;border-radius:8px;padding:6px;cursor:pointer;text-align:center}
+ .tpl:hover{border-color:#999} .tpl.on{border-color:#0a7aff;background:#eef5ff}
+ .tpl input{position:absolute;opacity:0;width:0;height:0} .tpl img{width:100%;border:1px solid #ccc;border-radius:3px;background:#fff}
+ .tpl span{display:block;font-size:12px;margin-top:4px;color:#333}
 </style>
 <h1>McMaster → DYMO</h1>
 <div>Reach this Mac at <code>${esc(baseUrl())}</code> · <a href="/shortcut">iPhone Shortcut setup</a></div>
 <h2>Printer</h2>
-<div>DYMO Connect: ${plist}<br><small>Label ${esc(config.size)}, layout ${esc(config.layout)}, picture ${config.showImage ? "on" : "off"}${config.printer ? ", printer " + esc(config.printer) : ""} — edit <code>${esc(config._file)}</code> and restart to change.</small></div>
+<div>DYMO Connect: ${plist}<br><small>${config.printer ? "Printer " + esc(config.printer) + "; other" : "Other"} settings in <code>${esc(config._file)}</code>.</small></div>
+<h2>Label template</h2>
+${templatePicker()}
 <h2>Print a label</h2>
-<form method="post" action="/print?ui=1">
+<form class="print" method="post" action="/print?ui=1">
   <input type="text" name="text" placeholder="Part number or McMaster link" autofocus>
   <input type="number" name="copies" value="${config.copies}" min="1" max="99">
   <button>Print</button>
@@ -176,8 +233,14 @@ code{background:#eee;padding:1px 5px;border-radius:4px} li{margin:8px 0}</style>
 <form method="post" action="/print?ui=1"><input type="hidden" name="text" value="9541K43"><button>Print a test label (9541K43)</button></form>`;
   }
 
+  const CORS = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "content-type, authorization"
+  };
+
   function send(res, status, body, type = "application/json; charset=utf-8") {
-    res.writeHead(status, { "content-type": type, "access-control-allow-origin": "*" });
+    res.writeHead(status, { "content-type": type, ...CORS });
     res.end(type.startsWith("application/json") ? JSON.stringify(body) : body);
   }
 
@@ -194,6 +257,21 @@ code{background:#eee;padding:1px 5px;border-radius:4px} li{margin:8px 0}</style>
       }
       if (url.pathname === "/status" && req.method === "GET") {
         return send(res, 200, { ok: true, printer: await printer.status(), settings: settings(), jobs: jobs.slice(0, 10).map(summarize) });
+      }
+      const pv = url.pathname.match(/^\/preview\/([a-z0-9_-]+)\.png$/i);
+      if (pv && req.method === "GET") {
+        if (!Label.LAYOUTS[pv[1]]) return send(res, 404, "unknown layout", "text/plain");
+        res.writeHead(200, { "content-type": "image/png", "cache-control": "no-cache" });
+        return res.end(await previewPng(pv[1]));
+      }
+      if (url.pathname === "/settings" && req.method === "POST") {
+        const body = await readBody(req);
+        const type = (req.headers["content-type"] || "").toLowerCase();
+        const fields = type.includes("json") ? JSON.parse(body || "{}") : Object.fromEntries(new URLSearchParams(body));
+        if (config.token && (fields.token || url.searchParams.get("token")) !== config.token) return send(res, 401, { ok: false, message: "Bad token" });
+        applySettings(fields);
+        if (type.includes("json")) return send(res, 200, { ok: true, settings: settings() });
+        res.writeHead(303, { location: "/" }); return res.end();
       }
       const m = url.pathname.match(/^\/jobs\/(\d+)\/([^/]+)\.png$/);
       if (m && req.method === "GET") {

@@ -53,6 +53,25 @@ async function renderForDymo(part, { size, layout, showImage }) {
   return { canvas, png: canvas.toBuffer("image/png"), size: s, hasImage: !!image };
 }
 
+// Sample part for template previews when nothing has been printed yet.
+const SAMPLE_PART = {
+  partNumber: "91290A115",
+  description: "Black-Oxide Alloy Steel Socket Head Screw, M3 x 0.5 mm Thread, 8 mm Long",
+  url: "https://www.mcmaster.com/91290A115/",
+  imageDataUrls: [], images: [path.join(__dirname, "sample.png")]
+};
+
+// Full-size preview of one layout, same geometry as the popup's preview.
+async function renderPreview(part, { size, layout, showImage }) {
+  const s = sizeFor(size);
+  const image = showImage ? await firstImage(part) : null;
+  const canvas = Label.renderLabel(
+    { partNumber: part.partNumber, description: part.description || "", url: part.url },
+    { widthIn: s.width, heightIn: s.height, padIn: 0.06, leftPadIn: 0.1, image, layout, makeCanvas: createCanvas, qrcode }
+  );
+  return canvas.toBuffer("image/png");
+}
+
 function createPrinter({ dymo = createDymoClient({ fetch: insecureFetch }) } = {}) {
   async function choosePrinter(preferred) {
     const printers = await dymo.getPrinters();
@@ -80,7 +99,7 @@ function createPrinter({ dymo = createDymoClient({ fetch: insecureFetch }) } = {
     catch (e) { dymo.reset(); return { ok: false, error: e.message, printers: [] }; }
   }
 
-  return { print, status, renderForDymo, choosePrinter };
+  return { print, status, renderForDymo, renderPreview, choosePrinter };
 }
 
-module.exports = { createPrinter, renderForDymo, insecureFetch, Label };
+module.exports = { createPrinter, renderForDymo, renderPreview, insecureFetch, Label, SAMPLE_PART };
