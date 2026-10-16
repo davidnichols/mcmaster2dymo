@@ -123,9 +123,38 @@ final class ServerController: ObservableObject {
 
   // MARK: settings
 
+  /// Keys the running server accepts live via POST /settings (it saves the
+  /// file itself); everything else needs a restart to take effect.
+  static let liveKeys: Set<String> = ["size", "layout", "showImage"]
+
   func set(_ key: String, _ value: Any) {
     config.values[key] = value
-    saveAndRestart()
+    if Self.liveKeys.contains(key), process != nil || state == .external {
+      Task { await pushLiveSettings(fallbackToRestart: true) }
+    } else {
+      saveAndRestart()
+    }
+  }
+
+  /// Send size/layout/showImage to the server; it persists them and the
+  /// status page reflects them immediately.
+  func pushLiveSettings(fallbackToRestart: Bool) async {
+    var req = URLRequest(url: baseURL.appendingPathComponent("settings"))
+    req.httpMethod = "POST"
+    req.timeoutInterval = 3
+    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    var body: [String: Any] = [
+      "size": config.string("size"), "layout": config.string("layout"), "showImage": config.bool("showImage")
+    ]
+    let token = config.string("token")
+    if !token.isEmpty { body["token"] = token }
+    req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+    if let (_, resp) = try? await URLSession.shared.data(for: req),
+       (resp as? HTTPURLResponse)?.statusCode == 200 {
+      config = ServerConfig.load()
+    } else if fallbackToRestart {
+      saveAndRestart()
+    }
   }
 
   func saveAndRestart() {
@@ -169,6 +198,20 @@ final class ServerController: ObservableObject {
       s.lastJob = m
     }
     status = s
+    // The status web page and the Chrome extension can change label settings
+    // behind our back; the server reports what it's using, so follow it.
+    if let live = j["settings"] as? [String: Any] {
+      let size = live["size"] as? String, layout = live["layout"] as? String, show = live["showImage"] as? Bool
+      if (size != nil && size != config.string("size"))
+          || (layout != nil && layout != config.string("layout"))
+          || (show != nil && show != config.bool("showImage")) {
+        var c = ServerConfig.load()
+        if let v = size { c.values["size"] = v }
+        if let v = layout { c.values["layout"] = v }
+        if let v = show { c.values["showImage"] = v }
+        config = c
+      }
+    }
     launchdAgentInstalled = FileManager.default.fileExists(atPath: agentPlist.path)
   }
 
